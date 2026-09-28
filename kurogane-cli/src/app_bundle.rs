@@ -10,7 +10,9 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use kurogane_layout::{AppMetadata, SignConfig, copy_dir, sign_app_bundle, validate_cef_runtime};
+use kurogane_layout::{
+    AppMetadata, MacosPackagingConfig, SignConfig, copy_dir, sign_app_bundle, validate_cef_runtime,
+};
 
 use crate::tui;
 
@@ -50,8 +52,22 @@ fn bundle_identifier(meta: &AppMetadata) -> String {
 }
 
 /// Generates `Contents/Info.plist` for the bundle.
-fn write_info_plist(app_dir: &Path, meta: &AppMetadata, exe_name: &str, icon: bool) -> Result<()> {
+fn write_info_plist(
+    app_dir: &Path,
+    meta: &AppMetadata,
+    macos: &MacosPackagingConfig,
+    exe_name: &str,
+    icon: bool,
+) -> Result<()> {
     let bundle_identifier = plist_escape(&bundle_identifier(meta));
+    let category = plist_escape(macos.category_or_default());
+    let minimum_system_version = match &macos.minimum_system_version {
+        Some(version) => format!(
+            "    <key>LSMinimumSystemVersion</key>\n    <string>{}</string>\n",
+            plist_escape(version)
+        ),
+        None => String::new(),
+    };
 
     let name = plist_escape(&meta.name);
     let exe = plist_escape(exe_name);
@@ -85,8 +101,8 @@ fn write_info_plist(app_dir: &Path, meta: &AppMetadata, exe_name: &str, icon: bo
     <key>CFBundleShortVersionString</key>
     <string>{version}</string>
 {icon_entry}    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-    <key>NSHighResolutionCapable</key>
+    <string>{category}</string>
+{minimum_system_version}    <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
@@ -279,6 +295,7 @@ fn install_icon(resources: &Path, icon: &Path) -> Result<bool> {
 pub fn build(
     dist: &kurogane_layout::ResolvedDistribution,
     output_dir: &Path,
+    macos: &MacosPackagingConfig,
     sign_config: Option<&SignConfig>,
 ) -> Result<std::path::PathBuf> {
     let app_name = dist.metadata.name.clone();
@@ -346,7 +363,7 @@ pub fn build(
         None => false,
     };
 
-    write_info_plist(&app_dir, &dist.metadata, &exe_name, icon)?;
+    write_info_plist(&app_dir, &dist.metadata, macos, &exe_name, icon)?;
 
     // Frontend resources
     if let Some(frontend) = &dist.frontend {
@@ -462,7 +479,7 @@ mod tests {
         };
 
         let output = dir.path().join("dist");
-        let app_dir = build(&dist, &output, None).unwrap();
+        let app_dir = build(&dist, &output, &MacosPackagingConfig::default(), None).unwrap();
 
         // Avoid asserting on platform tooling unavailable in every test environment
         assert!(
@@ -500,7 +517,7 @@ mod tests {
         };
 
         let output = dir.path().join("dist");
-        let app_dir = build(&dist, &output, None).unwrap();
+        let app_dir = build(&dist, &output, &MacosPackagingConfig::default(), None).unwrap();
         let frameworks = app_dir.join("Contents").join("Frameworks");
 
         for (suffix, id_suffix) in HELPERS {
@@ -529,7 +546,14 @@ mod tests {
         let contents = dir.path().join("Contents");
         fs::create_dir_all(&contents).unwrap();
 
-        write_info_plist(dir.path(), &sample_metadata(), "myapp", false).unwrap();
+        write_info_plist(
+            dir.path(),
+            &sample_metadata(),
+            &MacosPackagingConfig::default(),
+            "myapp",
+            false,
+        )
+        .unwrap();
 
         let plist = fs::read_to_string(contents.join("Info.plist")).unwrap();
         assert!(plist.contains("<key>CFBundleExecutable</key>"));
@@ -537,6 +561,42 @@ mod tests {
         assert!(plist.contains("<key>CFBundleIdentifier</key>"));
         assert!(plist.contains("<key>CFBundlePackageType</key>"));
         assert!(plist.contains("<string>APPL</string>"));
+    }
+
+    #[test]
+    fn info_plist_carries_the_macos_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("Contents")).unwrap();
+        let macos = MacosPackagingConfig {
+            minimum_system_version: Some("13.0".into()),
+            category: Some("public.app-category.photography".into()),
+        };
+
+        write_info_plist(dir.path(), &sample_metadata(), &macos, "myapp", false).unwrap();
+
+        let plist = fs::read_to_string(dir.path().join("Contents/Info.plist")).unwrap();
+        assert!(plist.contains("<key>LSMinimumSystemVersion</key>\n    <string>13.0</string>"));
+        assert!(plist.contains("<string>public.app-category.photography</string>"));
+        assert!(!plist.contains("public.app-category.utilities"));
+    }
+
+    #[test]
+    fn info_plist_defaults_to_utilities_without_a_minimum_version() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("Contents")).unwrap();
+
+        write_info_plist(
+            dir.path(),
+            &sample_metadata(),
+            &MacosPackagingConfig::default(),
+            "myapp",
+            false,
+        )
+        .unwrap();
+
+        let plist = fs::read_to_string(dir.path().join("Contents/Info.plist")).unwrap();
+        assert!(plist.contains("<string>public.app-category.utilities</string>"));
+        assert!(!plist.contains("LSMinimumSystemVersion"));
     }
 
     #[test]
@@ -556,7 +616,7 @@ mod tests {
         };
 
         let output = dir.path().join("dist");
-        let app_dir = build(&dist, &output, None).unwrap();
+        let app_dir = build(&dist, &output, &MacosPackagingConfig::default(), None).unwrap();
         assert!(app_dir.exists());
     }
 
@@ -581,7 +641,7 @@ mod tests {
         };
 
         let output = dir.path().join("dist");
-        let app_dir = build(&dist, &output, None).unwrap();
+        let app_dir = build(&dist, &output, &MacosPackagingConfig::default(), None).unwrap();
 
         // Contents/Resources is the bundle resource root
         assert!(
@@ -619,7 +679,7 @@ mod tests {
         };
 
         let output = dir.path().join("dist");
-        let app_dir = build(&dist, &output, None).unwrap();
+        let app_dir = build(&dist, &output, &MacosPackagingConfig::default(), None).unwrap();
 
         let mut links = Vec::new();
         let mut stack = vec![app_dir.clone()];
@@ -654,11 +714,25 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fs::create_dir_all(dir.path().join("Contents")).unwrap();
 
-        write_info_plist(dir.path(), &sample_metadata(), "myapp", false).unwrap();
+        write_info_plist(
+            dir.path(),
+            &sample_metadata(),
+            &MacosPackagingConfig::default(),
+            "myapp",
+            false,
+        )
+        .unwrap();
         let without = fs::read_to_string(dir.path().join("Contents/Info.plist")).unwrap();
         assert!(!without.contains("CFBundleIconFile"));
 
-        write_info_plist(dir.path(), &sample_metadata(), "myapp", true).unwrap();
+        write_info_plist(
+            dir.path(),
+            &sample_metadata(),
+            &MacosPackagingConfig::default(),
+            "myapp",
+            true,
+        )
+        .unwrap();
         let with = fs::read_to_string(dir.path().join("Contents/Info.plist")).unwrap();
         assert!(with.contains("<key>CFBundleIconFile</key>"));
         assert!(with.contains("<string>AppIcon</string>"));
@@ -671,7 +745,14 @@ mod tests {
 
         let mut meta = sample_metadata();
         meta.identifier = Some("com.example.myapp".to_string());
-        write_info_plist(dir.path(), &meta, "myapp", false).unwrap();
+        write_info_plist(
+            dir.path(),
+            &meta,
+            &MacosPackagingConfig::default(),
+            "myapp",
+            false,
+        )
+        .unwrap();
 
         let plist = fs::read_to_string(dir.path().join("Contents/Info.plist")).unwrap();
         assert!(plist.contains("<string>com.example.myapp</string>"));
@@ -700,7 +781,14 @@ mod tests {
         let mut meta = sample_metadata();
         meta.name = "Ben & Jerry <Ltd>".to_string();
 
-        write_info_plist(dir.path(), &meta, "myapp", false).unwrap();
+        write_info_plist(
+            dir.path(),
+            &meta,
+            &MacosPackagingConfig::default(),
+            "myapp",
+            false,
+        )
+        .unwrap();
 
         let plist = fs::read_to_string(dir.path().join("Contents/Info.plist")).unwrap();
 
@@ -731,7 +819,7 @@ mod tests {
         };
 
         let output = dir.path().join("dist");
-        let app_dir = build(&dist, &output, None).unwrap();
+        let app_dir = build(&dist, &output, &MacosPackagingConfig::default(), None).unwrap();
         assert!(
             app_dir
                 .join("Contents")

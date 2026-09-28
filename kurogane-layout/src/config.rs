@@ -22,6 +22,13 @@ pub enum ConfigError {
 
     #[error("resource source has no file name: {}", .0.display())]
     InvalidResourceSource(PathBuf),
+
+    #[error("[macos] {key} = {value:?} is not valid: {expected}")]
+    InvalidMacos {
+        key: &'static str,
+        value: String,
+        expected: &'static str,
+    },
 }
 
 /// Project packaging configuration.
@@ -31,6 +38,7 @@ pub struct PackagingConfig {
     pub app: AppConfig,
     pub bundle: BundleConfig,
     pub linux: LinuxPackagingConfig,
+    pub macos: MacosPackagingConfig,
     pub windows: WindowsPackagingConfig,
     pub signing: SigningFileConfig,
 }
@@ -45,7 +53,10 @@ impl PackagingConfig {
         }
 
         let raw = fs::read_to_string(&path).map_err(|e| ConfigError::Io(path.clone(), e))?;
-        toml::from_str(&raw).map_err(|e| ConfigError::Parse(path.clone(), Box::new(e)))
+        let config: PackagingConfig =
+            toml::from_str(&raw).map_err(|e| ConfigError::Parse(path.clone(), Box::new(e)))?;
+        config.macos.validate()?;
+        Ok(config)
     }
 }
 
@@ -142,6 +153,57 @@ impl ResourceConfig {
 pub struct LinuxPackagingConfig {
     pub categories: Option<Vec<String>>,
     pub terminal: Option<bool>,
+}
+
+/// macOS `Info.plist` configuration.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
+pub struct MacosPackagingConfig {
+    /// `LSMinimumSystemVersion`, such as `"13.0"`. Omitted when unset.
+    pub minimum_system_version: Option<String>,
+    /// `LSApplicationCategoryType`, such as `"public.app-category.photography"`.
+    pub category: Option<String>,
+}
+
+impl MacosPackagingConfig {
+    /// Category used when none is configured.
+    pub const DEFAULT_CATEGORY: &'static str = "public.app-category.utilities";
+
+    /// The category to write, falling back to [`Self::DEFAULT_CATEGORY`].
+    pub fn category_or_default(&self) -> &str {
+        self.category.as_deref().unwrap_or(Self::DEFAULT_CATEGORY)
+    }
+
+    fn validate(&self) -> Result<(), ConfigError> {
+        if let Some(version) = &self.minimum_system_version {
+            let parts: Vec<&str> = version.split('.').collect();
+            let numeric = parts
+                .iter()
+                .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()));
+            if !(1..=3).contains(&parts.len()) || !numeric {
+                return Err(ConfigError::InvalidMacos {
+                    key: "minimum-system-version",
+                    value: version.clone(),
+                    expected: "a version such as \"13.0\"",
+                });
+            }
+        }
+        if let Some(category) = &self.category {
+            let valid = category
+                .strip_prefix("public.app-category.")
+                .is_some_and(|rest| {
+                    !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_lowercase() || b == b'-')
+                });
+            if !valid {
+                return Err(ConfigError::InvalidMacos {
+                    key: "category",
+                    value: category.clone(),
+                    expected: "an Apple category such as \"public.app-category.photography\"",
+                });
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Windows installer configuration.
@@ -321,6 +383,59 @@ custom-command = "signtool sign /fd sha256"
             config.signing.custom_command.as_deref(),
             Some("signtool sign /fd sha256")
         );
+    }
+
+    #[test]
+    fn macos_keys_parse() {
+        let dir = tempfile::tempdir().unwrap();
+        write_config(
+            dir.path(),
+            r#"
+[macos]
+minimum-system-version = "13.0"
+category = "public.app-category.photography"
+"#,
+        );
+
+        let config = PackagingConfig::load(dir.path()).unwrap();
+
+        assert_eq!(config.macos.minimum_system_version.as_deref(), Some("13.0"));
+        assert_eq!(
+            config.macos.category_or_default(),
+            "public.app-category.photography"
+        );
+    }
+
+    #[test]
+    fn macos_defaults_keep_the_utilities_category() {
+        let config = MacosPackagingConfig::default();
+
+        assert_eq!(config.minimum_system_version, None);
+        assert_eq!(
+            config.category_or_default(),
+            "public.app-category.utilities"
+        );
+    }
+
+    #[test]
+    fn invalid_macos_keys_are_rejected() {
+        for (key, value) in [
+            ("minimum-system-version", "thirteen"),
+            ("minimum-system-version", "13..0"),
+            ("minimum-system-version", "1.2.3.4"),
+            ("category", "photography"),
+            ("category", "public.app-category.Photo Editing"),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            write_config(dir.path(), &format!("[macos]\n{key} = \"{value}\"\n"));
+
+            let err = PackagingConfig::load(dir.path()).unwrap_err();
+
+            assert!(
+                matches!(&err, ConfigError::InvalidMacos { key: k, .. } if *k == key),
+                "{key} = {value}: {err}"
+            );
+        }
     }
 
     #[test]

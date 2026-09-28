@@ -417,6 +417,10 @@ destination = "share/data"          # optional; bundle-root-relative; defaults t
 categories = ["Development", "IDE"] # .desktop Categories=; default ["Utility"]
 terminal = true                     # .desktop Terminal=; default false
 
+[macos]
+minimum-system-version = "13.0"     # Info.plist LSMinimumSystemVersion; omitted by default
+category = "public.app-category.photography" # LSApplicationCategoryType; default public.app-category.utilities
+
 [windows]
 start-menu-shortcut = true          # default true
 desktop-shortcut = true             # default true
@@ -436,6 +440,8 @@ App::new("content").run_or_exit();
 ```
 
 Resource destinations are validated before packaging: absolute paths and `..` components are rejected.
+
+`[macos]` values are checked when the file loads: `minimum-system-version` must be a dotted version such as `13.0`, and `category` one of Apple's `public.app-category.*` types.
 
 ## Extra resources
 

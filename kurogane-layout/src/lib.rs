@@ -19,8 +19,8 @@ pub use cef::{
 };
 pub use discover::{DetectError, DetectedCef, DiscoveryMode, detect_cef_root_with_version};
 pub use config::{
-    anchor_path, AppConfig, BundleConfig, ConfigError, LinuxPackagingConfig, PackagingConfig,
-    ResourceConfig, SigningFileConfig, WindowsPackagingConfig, CONFIG_FILE_NAME,
+    anchor_path, AppConfig, BundleConfig, ConfigError, LinuxPackagingConfig, MacosPackagingConfig,
+    PackagingConfig, ResourceConfig, SigningFileConfig, WindowsPackagingConfig, CONFIG_FILE_NAME,
 };
 pub use distribution::{AppMetadata, DistributionError, ResolvedDistribution, ResolvedResource};
 pub use layout::{
