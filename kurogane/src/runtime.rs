@@ -275,6 +275,7 @@ pub(crate) struct RuntimeServices {
     pub browser_registry: Arc<Mutex<BrowserRegistry>>,
     pub window_registry: Arc<Mutex<WindowRegistry>>,
     pub new_window: Option<crate::new_window::NewWindowHandler>,
+    pub downloads: crate::Downloads,
 }
 
 pub(crate) struct RuntimeState {
@@ -1160,6 +1161,7 @@ fn initialize_cef(
         browser_registry,
         window_registry,
         new_window: spec.on_new_window.clone(),
+        downloads: spec.downloads,
     });
 
     #[cfg(target_os = "macos")]

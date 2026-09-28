@@ -14,6 +14,7 @@ mod window;
 mod main_window;
 mod new_window;
 mod external;
+mod download;
 mod client;
 mod chrome_commands;
 mod scheme;
@@ -49,6 +50,7 @@ pub use app::App;
 pub use main_window::MainWindow;
 pub use new_window::{NewWindowAction, NewWindowDisposition, NewWindowRequest};
 pub use external::{OpenExternalError, open_external};
+pub use download::Downloads;
 pub use resources::resource_dir;
 pub use shutdown::ShutdownSignal;
 

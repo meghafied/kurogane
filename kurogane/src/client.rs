@@ -228,6 +228,10 @@ wrap_client! {
             ))
         }
 
+        fn download_handler(&self) -> Option<DownloadHandler> {
+            crate::download::handler(self.services.downloads)
+        }
+
         fn on_process_message_received(
             &self,
             browser: Option<&mut Browser>,

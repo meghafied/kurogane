@@ -228,6 +228,23 @@ See:
 
 * [examples/new-window](../kurogane-suite/scenarios/new-window/main.rs)
 
+## Asking where to save downloads
+
+Chrome-style windows save downloads straight to the Downloads folder. Ask
+instead:
+
+```rust
+use kurogane::{App, Downloads};
+
+App::new("dist").downloads(Downloads::Prompt).run_or_exit();
+```
+
+`Downloads::Deny` refuses them all.
+
+See:
+
+* [examples/downloads](../kurogane-suite/scenarios/downloads/main.rs)
+
 ## Exposing Rust commands to JavaScript
 
 Register commands using `App::command`.

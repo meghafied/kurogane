@@ -25,6 +25,7 @@ use crate::capability::Filesystem;
 use crate::acl::Origin;
 use crate::main_window::MainWindow;
 use crate::new_window::{NewWindowAction, NewWindowHandler, NewWindowRequest};
+use crate::download::Downloads;
 
 mod resolver;
 
@@ -264,6 +265,7 @@ pub struct App {
     on_second_instance: Option<SecondInstanceHandler>,
     main_window: MainWindow,
     on_new_window: Option<NewWindowHandler>,
+    downloads: Downloads,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -304,6 +306,7 @@ impl App {
             on_second_instance: None,
             main_window: MainWindow::default(),
             on_new_window: None,
+            downloads: Downloads::default(),
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -724,6 +727,14 @@ impl App {
         self
     }
 
+    /// Sets what happens to downloads. Defaults to [`Downloads::Chromium`],
+    /// which in Chrome-style windows saves to the Downloads folder without
+    /// asking.
+    pub fn downloads(mut self, policy: Downloads) -> Self {
+        self.downloads = policy;
+        self
+    }
+
     /// Sets the Chromium process sandbox policy.
     ///
     /// Defaults to [`SandboxMode::Disabled`].
@@ -803,6 +814,7 @@ impl App {
             on_second_instance,
             main_window,
             on_new_window,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -833,6 +845,7 @@ impl App {
             on_second_instance,
             main_window,
             on_new_window,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -869,6 +882,7 @@ impl App {
             on_second_instance,
             main_window,
             on_new_window,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -899,6 +913,7 @@ impl App {
             on_second_instance,
             main_window,
             on_new_window,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,
