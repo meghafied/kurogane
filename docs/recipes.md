@@ -201,6 +201,33 @@ See:
 
 * [examples/main-window](../kurogane-suite/scenarios/main-window/main.rs)
 
+## Opening links in the system browser
+
+Pages open new windows with `target="_blank"`, `window.open` or a
+modifier-click. By default each becomes an application window. Decide per
+request with `App::on_new_window`:
+
+```rust
+use kurogane::{App, NewWindowAction};
+
+App::new("dist")
+    .on_new_window(|request, _app| {
+        if request.url.starts_with("https://") && request.user_gesture {
+            NewWindowAction::OpenExternal
+        } else {
+            NewWindowAction::Deny
+        }
+    })
+    .run_or_exit();
+```
+
+`kurogane::open_external(url)` hands an `http`, `https` or `mailto` URL to the
+system from anywhere in the app.
+
+See:
+
+* [examples/new-window](../kurogane-suite/scenarios/new-window/main.rs)
+
 ## Exposing Rust commands to JavaScript
 
 Register commands using `App::command`.

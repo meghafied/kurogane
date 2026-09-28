@@ -53,6 +53,7 @@ pub(crate) struct RuntimeSpec {
     pub scheduler: Option<PumpScheduler>,
     pub on_second_instance: Option<SecondInstanceHandler>,
     pub main_window: crate::MainWindow,
+    pub on_new_window: Option<crate::new_window::NewWindowHandler>,
     pub delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     pub renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     pub scheme_handlers: Vec<CustomScheme>,

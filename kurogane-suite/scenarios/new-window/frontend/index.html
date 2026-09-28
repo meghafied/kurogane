@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>New-window policy</title></head>
+<body style="font: 16px -apple-system, sans-serif; margin: 24px; display: grid; gap: 12px; justify-items: start">
+  <a id="external" href="https://example.com/" target="_blank">target=_blank https link → system browser</a>
+  <button id="app" onclick="window.open('app://app/index.html')">window.open app:// → app window</button>
+  <button id="timer" onclick="setTimeout(() => window.open('https://example.com/timer'), 6000)">window.open after 6 s → blocked by Chromium's popup blocker (no user activation), the policy never sees it</button>
+  <a id="script" href="javascript:alert(1)" target="_blank">javascript: link → refused</a>
+</body>
+</html>

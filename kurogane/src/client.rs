@@ -19,6 +19,8 @@ wrap_life_span_handler! {
         router: Arc<IpcRouter>,
         // What the browsers of this client are, popups aside
         browser_type: BrowserType,
+        // The application's new-window policy, if it set one
+        new_window: Option<crate::new_window::NewWindowHandler>,
     }
 
     impl LifeSpanHandler {
@@ -46,6 +48,44 @@ wrap_life_span_handler! {
             };
 
             reg.ensure_registered(browser, browser_type, opener);
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn on_before_popup(
+            &self,
+            _browser: Option<&mut Browser>,
+            frame: Option<&mut Frame>,
+            _popup_id: ::std::os::raw::c_int,
+            target_url: Option<&CefString>,
+            _target_frame_name: Option<&CefString>,
+            target_disposition: WindowOpenDisposition,
+            user_gesture: ::std::os::raw::c_int,
+            _popup_features: Option<&PopupFeatures>,
+            _window_info: Option<&mut WindowInfo>,
+            _client: Option<&mut Option<Client>>,
+            _settings: Option<&mut BrowserSettings>,
+            _extra_info: Option<&mut Option<DictionaryValue>>,
+            _no_javascript_access: Option<&mut ::std::os::raw::c_int>,
+        ) -> ::std::os::raw::c_int {
+            let Some(policy) = &self.new_window else {
+                return 0;
+            };
+            let request = crate::NewWindowRequest {
+                url: target_url.map(|url| url.to_string()).unwrap_or_default(),
+                opener_url: frame
+                    .map(|frame| CefString::from(&frame.url()).to_string())
+                    .unwrap_or_default(),
+                disposition: target_disposition.into(),
+                user_gesture: user_gesture != 0,
+            };
+            let action = policy(&request);
+            debug!("[LifeSpan] new window {} -> {:?}", request.url, action);
+
+            let (cancel, external) = crate::new_window::popup_outcome(action);
+            if external && let Err(err) = crate::open_external(&request.url) {
+                eprintln!("kurogane: {err}");
+            }
+            cancel as ::std::os::raw::c_int
         }
 
         fn do_close(&self, _browser: Option<&mut Browser>) -> i32 {
@@ -184,6 +224,7 @@ wrap_client! {
                 self.is_closing.clone(),
                 self.services.router.clone(),
                 self.browser_type,
+                self.services.new_window.clone(),
             ))
         }
 

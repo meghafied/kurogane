@@ -98,3 +98,7 @@ path = "scenarios/workspace/main.rs"
 [[example]]
 name = "main-window"
 path = "scenarios/main-window/main.rs"
+
+[[example]]
+name = "new-window"
+path = "scenarios/new-window/main.rs"
