@@ -49,6 +49,10 @@ wrap_app! {
             apply_gpu_flags(&mut flags, self.spec.gpu_mode);
             apply_credential_flags(&mut flags, self.spec.credential_storage);
 
+            if self.spec.quiet_network {
+                flags.set_with_value("disable-features", crate::quiet::DISABLED_FEATURES.join(","));
+            }
+
             // Apply user overrides
             flags.extend_user_flags(&self.spec.chromium_flags);
 

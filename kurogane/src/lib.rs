@@ -16,6 +16,7 @@ mod new_window;
 mod external;
 mod download;
 mod menu;
+mod quiet;
 mod client;
 mod chrome_commands;
 mod scheme;

@@ -267,6 +267,7 @@ pub struct App {
     on_new_window: Option<NewWindowHandler>,
     downloads: Downloads,
     default_menu: bool,
+    quiet_network: bool,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -309,6 +310,7 @@ impl App {
             on_new_window: None,
             downloads: Downloads::default(),
             default_menu: true,
+            quiet_network: false,
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -748,6 +750,18 @@ impl App {
         self
     }
 
+    /// Silences Chromium services that call Google on their own: AI-mode
+    /// eligibility checks (`www.google.com/async/folae`), search-engine
+    /// preconnects and network time queries (`clients2.google.com/time`).
+    /// Requests your pages make are unaffected.
+    ///
+    /// Account reconciliation (`accounts.google.com/ListAccounts`) still
+    /// runs; see the `quiet` module for why.
+    pub fn quiet_network(mut self, quiet: bool) -> Self {
+        self.quiet_network = quiet;
+        self
+    }
+
     /// Sets the Chromium process sandbox policy.
     ///
     /// Defaults to [`SandboxMode::Disabled`].
@@ -829,6 +843,7 @@ impl App {
             on_new_window,
             downloads,
             default_menu,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -861,6 +876,7 @@ impl App {
             on_new_window,
             downloads,
             default_menu,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -899,6 +915,7 @@ impl App {
             on_new_window,
             downloads,
             default_menu,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -931,6 +948,7 @@ impl App {
             on_new_window,
             downloads,
             default_menu,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
