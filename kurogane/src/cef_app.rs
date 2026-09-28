@@ -50,7 +50,7 @@ wrap_app! {
             apply_credential_flags(&mut flags, self.spec.credential_storage);
 
             if self.spec.quiet_network {
-                flags.set_with_value("disable-features", crate::quiet::DISABLED_FEATURES.join(","));
+                crate::quiet::apply(&mut flags);
             }
 
             // Apply user overrides
