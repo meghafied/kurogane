@@ -33,6 +33,12 @@ wrap_browser_process_handler! {
             // Prevent Chromium from restoring the previous session before creating a window
             start_without_restoring_session();
 
+            if self.spec.quiet_network {
+                for name in crate::quiet::DISABLED_PREFERENCES {
+                    disable_preference(name);
+                }
+            }
+
             // Dispatch to lifecycle delegates first
             for delegate in &self.spec.delegates {
                 delegate.on_context_initialized();
@@ -252,5 +258,24 @@ fn start_without_restoring_session() {
 
     if context.set_preference(Some(&name), Some(&mut value), Some(&mut error)) == 0 {
         eprintln!("kurogane: failed to disable Chromium session restore: {error}");
+    }
+}
+
+/// Sets a boolean preference to false on the global request context.
+fn disable_preference(name: &str) {
+    let Some(context) = request_context_get_global_context() else {
+        return;
+    };
+    let Some(mut value) = value_create() else {
+        return;
+    };
+    value.set_bool(0);
+
+    let pref = CefString::from(name);
+    // CEF requires a non-null error string
+    let mut error = CefString::from("");
+
+    if context.set_preference(Some(&pref), Some(&mut value), Some(&mut error)) == 0 {
+        eprintln!("kurogane: failed to turn off {name}: {error}");
     }
 }

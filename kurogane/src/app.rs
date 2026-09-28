@@ -679,9 +679,14 @@ impl App {
 
     /// Silences Chromium services that call Google on their own: AI-mode
     /// eligibility checks (`www.google.com/async/folae`), search-engine
-    /// preconnects, network time queries (`clients2.google.com/time`) and
-    /// component update checks (`update.googleapis.com`). Requests your
-    /// pages make are unaffected.
+    /// preconnects, network time queries (`clients2.google.com/time`),
+    /// component update checks (`update.googleapis.com`) and Safe Browsing
+    /// list updates (`safebrowsing.googleapis.com`). Requests your pages
+    /// make are unaffected.
+    ///
+    /// Safe Browsing is turned off entirely, so pages loaded from the web
+    /// get no phishing or malware warnings. Use it for apps that show their
+    /// own content.
     ///
     /// Account reconciliation (`accounts.google.com/ListAccounts`) still
     /// runs; see the `quiet` module for why.
