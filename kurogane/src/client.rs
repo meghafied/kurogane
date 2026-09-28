@@ -171,7 +171,7 @@ wrap_client! {
 
     impl Client {
         fn command_handler(&self) -> Option<CommandHandler> {
-            Some(KuroganeCommandHandler::new())
+            Some(KuroganeCommandHandler::new(self.services.clone()))
         }
 
         fn load_handler(&self) -> Option<LoadHandler> {

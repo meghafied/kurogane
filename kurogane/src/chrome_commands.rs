@@ -6,14 +6,16 @@
 //!
 //! To prevent CEF from spawning unmanaged native windows or tabs, this module intercepts
 //! the command pipeline. Kurogane uses a strict allowlist: commands execute ONLY if they
-//! operate on the current page context. All other commands are intentionally swallowed.
+//! operate on the current page context. All other commands are intentionally swallowed,
+//! except the quit command (⌘Q on macOS), which closes the application in order.
 
 use std::ffi::{CStr, c_char, c_int};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use cef::*;
 
 use crate::debug;
+use crate::runtime::RuntimeServices;
 
 /// Strict allowlist of page-local commands, by their names in `cef_command_ids.h`.
 const ALLOWED: &[&CStr] = &[
@@ -89,15 +91,48 @@ fn custom_context_ids() -> Option<(c_int, c_int)> {
     })
 }
 
-/// Returns whether a Kurogane window runs the command `id`.
-fn allowed(id: c_int, disposition: WindowOpenDisposition) -> bool {
-    disposition == WindowOpenDisposition::CURRENT_TAB
-        && (allowed_ids().contains(&id)
-            || custom_context_ids().is_some_and(|(first, last)| (first..=last).contains(&id)))
+/// The runtime ID of Chrome's quit command, `IDC_EXIT`.
+fn exit_id() -> Option<c_int> {
+    static ID: OnceLock<Option<c_int>> = OnceLock::new();
+    *ID.get_or_init(|| command_id(c"IDC_EXIT"))
+}
+
+/// What a Kurogane window does with a Chrome command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Verdict {
+    /// Let CEF run it.
+    Run,
+    /// Close the application in order, as its `terminate:` does.
+    Quit,
+    /// Swallow it.
+    Refuse,
+}
+
+/// Decides for command `id`, given the resolved IDs of the allowlist, the
+/// custom context menu range and the quit command.
+fn verdict(
+    id: c_int,
+    disposition: WindowOpenDisposition,
+    allowed: &[c_int],
+    custom: Option<(c_int, c_int)>,
+    exit: Option<c_int>,
+) -> Verdict {
+    if exit == Some(id) {
+        return Verdict::Quit;
+    }
+    let page_local =
+        allowed.contains(&id) || custom.is_some_and(|(first, last)| (first..=last).contains(&id));
+    if disposition == WindowOpenDisposition::CURRENT_TAB && page_local {
+        Verdict::Run
+    } else {
+        Verdict::Refuse
+    }
 }
 
 wrap_command_handler! {
-    pub struct KuroganeCommandHandler;
+    pub struct KuroganeCommandHandler {
+        services: Arc<RuntimeServices>,
+    }
 
     impl CommandHandler {
         fn on_chrome_command(
@@ -106,13 +141,69 @@ wrap_command_handler! {
             command_id: c_int,
             disposition: WindowOpenDisposition,
         ) -> c_int {
-            if allowed(command_id, disposition) {
-                return 0; // False. Unhandled by wrapper, proceed with default CEF execution.
+            match verdict(command_id, disposition, allowed_ids(), custom_context_ids(), exit_id()) {
+                // False. Unhandled by wrapper, proceed with default CEF execution.
+                Verdict::Run => 0,
+                Verdict::Quit => {
+                    // Chrome's own exit path would bypass Kurogane's shutdown
+                    debug!("[Commands] quit");
+                    crate::runtime::close_all_browsers_and_windows(
+                        &self.services.browser_registry,
+                        &self.services.window_registry,
+                    );
+                    1
+                }
+                Verdict::Refuse => {
+                    debug!("[Commands] refused Chrome command {command_id} ({disposition:?})");
+                    // True. Handled by wrapper. Swallows the command so CEF drops it.
+                    1
+                }
             }
-
-            debug!("[Commands] refused Chrome command {command_id} ({disposition:?})");
-
-            1 // True. Handled by wrapper. Swallows the command so CEF drops it.
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const COPY: c_int = 10;
+    const NEW_TAB: c_int = 11;
+    const EXIT: c_int = 12;
+
+    fn decide(id: c_int, disposition: WindowOpenDisposition) -> Verdict {
+        verdict(id, disposition, &[COPY], Some((100, 199)), Some(EXIT))
+    }
+
+    #[test]
+    fn page_local_commands_run() {
+        assert_eq!(
+            decide(COPY, WindowOpenDisposition::CURRENT_TAB),
+            Verdict::Run
+        );
+        assert_eq!(
+            decide(150, WindowOpenDisposition::CURRENT_TAB),
+            Verdict::Run
+        );
+    }
+
+    #[test]
+    fn everything_else_is_refused() {
+        assert_eq!(
+            decide(NEW_TAB, WindowOpenDisposition::CURRENT_TAB),
+            Verdict::Refuse
+        );
+        assert_eq!(
+            decide(COPY, WindowOpenDisposition::NEW_FOREGROUND_TAB),
+            Verdict::Refuse
+        );
+    }
+
+    #[test]
+    fn quit_closes_the_application() {
+        assert_eq!(
+            decide(EXIT, WindowOpenDisposition::CURRENT_TAB),
+            Verdict::Quit
+        );
     }
 }
