@@ -412,6 +412,7 @@ icon = "assets/icon.png"            # AppImage hicolor icon (PNG)
 [[bundle.resources]]
 source = "assets/data"              # file or directory, relative to the project root
 destination = "share/data"          # optional; bundle-root-relative; defaults to the source file name
+preserve-symlinks = false           # optional; recreate symlinks inside a directory (macOS/Linux)
 
 [linux]
 categories = ["Development", "IDE"] # .desktop Categories=; default ["Utility"]
@@ -452,6 +453,8 @@ Resources declared under `[[bundle.resources]]` are placed inside the canonical 
 - NSIS: `$INSTDIR\<destination>` (via the wholesale copy)
 
 Entries without a `destination` land at the bundle root under their source file name.
+
+Directories are copied through their symlinks by default, so the bundle holds no links. Set `preserve-symlinks = true` on a directory resource whose layout depends on them, such as a macOS framework (`Versions/Current`) or a PyInstaller build that links its libraries instead of duplicating them. Each link is recreated as is, and only if it is relative, stays inside the resource and points at something that exists; any other link fails the bundle with its path. This is supported on macOS and Linux.
 
 ## Code signing
 

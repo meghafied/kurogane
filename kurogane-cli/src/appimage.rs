@@ -603,6 +603,7 @@ mod tests {
             .push(kurogane_layout::ResolvedResource {
                 source: res.clone(),
                 destination: "extra.txt".into(),
+                preserve_symlinks: false,
             });
 
         let app_dir = dir.path().join("appdir");

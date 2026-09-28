@@ -5,7 +5,8 @@
 //!
 //! It does not define package formats or application metadata.
 
-use std::path::{Path, PathBuf};
+use std::io;
+use std::path::{Component, Path, PathBuf};
 
 use crate::platform;
 
@@ -40,6 +41,95 @@ pub fn copy_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+/// Copies `src` into `dst` like [`copy_dir`], but recreates symlinks instead
+/// of copying what they point to.
+///
+/// Frameworks and Python distributions depend on such links; copying through
+/// them duplicates files and breaks the framework layout. A link is kept
+/// only when it is relative, stays inside `src` and points at something that
+/// exists. Any other link fails the copy with [`io::ErrorKind::InvalidInput`]
+/// naming it, so a bundle never reaches outside itself.
+pub fn copy_dir_preserving_links(src: &Path, dst: &Path) -> io::Result<()> {
+    copy_tree_preserving_links(src, src, dst)
+}
+
+fn copy_tree_preserving_links(root: &Path, src: &Path, dst: &Path) -> io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let path = entry.path();
+        let dest = dst.join(entry.file_name());
+        // file_type does not follow the link
+        let kind = entry.file_type()?;
+
+        if kind.is_symlink() {
+            let target = std::fs::read_link(&path)?;
+            check_link(root, &path, &target)?;
+            if dest.symlink_metadata().is_ok() {
+                std::fs::remove_file(&dest)?;
+            }
+            make_symlink(&target, &dest)?;
+        } else if kind.is_dir() {
+            copy_tree_preserving_links(root, &path, &dest)?;
+        } else {
+            std::fs::copy(&path, &dest)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn check_link(root: &Path, link: &Path, target: &Path) -> io::Result<()> {
+    let invalid = |why: &str| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("symlink {} -> {}: {why}", link.display(), target.display()),
+        )
+    };
+
+    if target.is_absolute() {
+        return Err(invalid("absolute links are not preserved"));
+    }
+
+    // Resolve lexically; links through other links are each checked in turn
+    let mut resolved = link.parent().unwrap_or(root).to_path_buf();
+    for component in target.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                resolved.pop();
+            }
+            Component::Normal(part) => resolved.push(part),
+            _ => return Err(invalid("unexpected path component")),
+        }
+    }
+
+    if !resolved.starts_with(root) {
+        return Err(invalid("it points outside the resource"));
+    }
+    if !resolved.exists() {
+        return Err(invalid("it points to nothing"));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn make_symlink(target: &Path, link: &Path) -> io::Result<()> {
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(not(unix))]
+fn make_symlink(_target: &Path, link: &Path) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        format!(
+            "cannot recreate symlink {}: preserve-symlinks is supported on macOS and Linux only",
+            link.display()
+        ),
+    ))
 }
 
 /// Returns the `Contents` directory of the `.app` directly containing `exe`.
@@ -197,7 +287,75 @@ pub fn bundled_cef_root() -> Result<Option<PathBuf>, std::io::Error> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+
+    #[cfg(unix)]
+    fn link(target: &str, at: &Path) {
+        std::os::unix::fs::symlink(target, at).unwrap();
+    }
+
+    /// A framework-like tree: a versioned directory with `Current` and
+    /// top-level links, plus a library alias beside its target.
+    #[cfg(unix)]
+    fn linked_tree(root: &Path) {
+        let a = root.join("Python.framework/Versions/A");
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::write(a.join("Python"), b"binary").unwrap();
+        link("A", &root.join("Python.framework/Versions/Current"));
+        link(
+            "Versions/Current/Python",
+            &root.join("Python.framework/Python"),
+        );
+        std::fs::create_dir_all(root.join("lib")).unwrap();
+        std::fs::write(root.join("lib/libreal.dylib"), b"lib").unwrap();
+        link("libreal.dylib", &root.join("lib/libalias.dylib"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn links_inside_the_resource_are_recreated() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("worker");
+        linked_tree(&src);
+        let dst = dir.path().join("out");
+
+        copy_dir_preserving_links(&src, &dst).unwrap();
+
+        let current = dst.join("Python.framework/Versions/Current");
+        assert!(current.symlink_metadata().unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read_link(&current).unwrap(), Path::new("A"));
+        let alias = dst.join("lib/libalias.dylib");
+        assert_eq!(
+            std::fs::read_link(&alias).unwrap(),
+            Path::new("libreal.dylib")
+        );
+        assert_eq!(
+            std::fs::read(dst.join("Python.framework/Python")).unwrap(),
+            b"binary"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn links_that_leave_the_resource_or_resolve_to_nothing_are_rejected() {
+        for (name, target) in [
+            ("escape", "../../outside.txt"),
+            ("absolute", "/etc/hosts"),
+            ("dangling", "missing.txt"),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            std::fs::write(dir.path().join("outside.txt"), b"x").unwrap();
+            let src = dir.path().join("resource");
+            std::fs::create_dir_all(src.join("sub")).unwrap();
+            link(target, &src.join("sub").join(name));
+
+            let err = copy_dir_preserving_links(&src, &dir.path().join("out")).unwrap_err();
+
+            assert_eq!(err.kind(), io::ErrorKind::InvalidInput, "{name}: {err}");
+            assert!(err.to_string().contains(name), "{name}: {err}");
+        }
+    }
 
     #[test]
     fn a_helper_resolves_to_the_application_that_owns_it() {

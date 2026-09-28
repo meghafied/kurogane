@@ -25,6 +25,9 @@ pub struct AppMetadata {
 pub struct ResolvedResource {
     pub source: PathBuf,
     pub destination: PathBuf,
+    /// Recreate symlinks inside a directory resource (see
+    /// [`crate::copy_dir_preserving_links`]).
+    pub preserve_symlinks: bool,
 }
 
 /// The resolved contents of an application distribution.
@@ -297,6 +300,7 @@ mod tests {
         dist.extra_resources = vec![ResolvedResource {
             source: missing.clone(),
             destination: "nonexistent_resource".into(),
+            preserve_symlinks: false,
         }];
 
         let err = dist.validate().unwrap_err();
@@ -313,6 +317,7 @@ mod tests {
         dist.extra_resources = vec![ResolvedResource {
             source: dir.path().join("missing_res"),
             destination: "missing_res".into(),
+            preserve_symlinks: false,
         }];
 
         let err = dist.validate().unwrap_err();
@@ -363,6 +368,7 @@ mod tests {
         dist.extra_resources = vec![ResolvedResource {
             source: missing_dir,
             destination: "missing_dir".into(),
+            preserve_symlinks: false,
         }];
 
         let err = dist.validate().unwrap_err();
@@ -379,6 +385,7 @@ mod tests {
         dist.extra_resources = vec![ResolvedResource {
             source: dir.path().join("extra.txt"),
             destination: "/etc/passwd".into(),
+            preserve_symlinks: false,
         }];
 
         let err = dist.validate().unwrap_err();
@@ -396,6 +403,7 @@ mod tests {
         dist.extra_resources = vec![ResolvedResource {
             source: dir.path().join("extra.txt"),
             destination: r"C:\Windows\evil.dll".into(),
+            preserve_symlinks: false,
         }];
 
         let err = dist.validate().unwrap_err();
@@ -412,6 +420,7 @@ mod tests {
         dist.extra_resources = vec![ResolvedResource {
             source: dir.path().join("extra.txt"),
             destination: "../escape.txt".into(),
+            preserve_symlinks: false,
         }];
 
         let err = dist.validate().unwrap_err();
@@ -428,6 +437,7 @@ mod tests {
         dist.extra_resources = vec![ResolvedResource {
             source: dir.path().join("extra.txt"),
             destination: "share/data/extra.txt".into(),
+            preserve_symlinks: false,
         }];
 
         dist.validate().unwrap();
