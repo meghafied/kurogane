@@ -23,6 +23,7 @@ use crate::credentials::CredentialStorage;
 use crate::gpu::GpuMode;
 use crate::capability::Filesystem;
 use crate::acl::Origin;
+use crate::new_window::{NewWindowAction, NewWindowHandler, NewWindowRequest};
 
 mod resolver;
 
@@ -260,6 +261,7 @@ pub struct App {
     chromium_flags: Vec<ChromiumFlag>,
     scheduler: Option<PumpScheduler>,
     on_second_instance: Option<SecondInstanceHandler>,
+    on_new_window: Option<NewWindowHandler>,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -298,6 +300,7 @@ impl App {
             chromium_flags: Vec::new(),
             scheduler: None,
             on_second_instance: None,
+            on_new_window: None,
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -675,6 +678,38 @@ impl App {
         self
     }
 
+    /// Decides what happens when a page opens a new window (`target="_blank"`,
+    /// `window.open`, a modifier-click). Without a policy each one opens an
+    /// application window.
+    ///
+    /// Runs on the UI thread. DevTools windows are not affected.
+    ///
+    /// ```no_run
+    /// use kurogane::{App, NewWindowAction};
+    ///
+    /// App::new("dist")
+    ///     .on_new_window(|request, _app| {
+    ///         if request.url.starts_with("https://") && request.user_gesture {
+    ///             NewWindowAction::OpenExternal
+    ///         } else {
+    ///             NewWindowAction::Deny
+    ///         }
+    ///     })
+    ///     .run_or_exit();
+    /// ```
+    ///
+    /// A later call replaces an earlier one.
+    pub fn on_new_window<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&NewWindowRequest, &AppHandle) -> NewWindowAction + Send + Sync + 'static,
+    {
+        let cell = self.cell.clone();
+        self.on_new_window = Some(Arc::new(move |request: &NewWindowRequest| {
+            f(request, cell.get())
+        }));
+        self
+    }
+
     /// Sets the Chromium process sandbox policy.
     ///
     /// Defaults to [`SandboxMode::Disabled`].
@@ -752,6 +787,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            on_new_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -780,6 +816,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            on_new_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -814,6 +851,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            on_new_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -842,6 +880,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            on_new_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
