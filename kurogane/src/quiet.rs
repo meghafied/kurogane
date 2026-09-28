@@ -2,13 +2,15 @@
 //!
 //! Chrome-style CEF keeps several browser services alive that talk to
 //! Google without any page asking: AI-mode eligibility checks,
-//! search-engine preconnects, network time queries and account
-//! reconciliation.
+//! search-engine preconnects, network time queries, component update
+//! checks and account reconciliation.
 //!
 //! Account reconciliation (`accounts.google.com/ListAccounts`) is not
 //! covered: turning it off means disallowing sign-in (`signin.allowed`),
 //! and a profile saved with sign-in disallowed crashes CEF 150's
 //! Chrome-style browser creation on the next launch.
+
+use crate::chromium_flags::ChromiumFlags;
 
 /// Features switched off with `--disable-features`.
 pub(crate) const DISABLED_FEATURES: &[&str] = &[
@@ -23,6 +25,14 @@ pub(crate) const DISABLED_FEATURES: &[&str] = &[
     "NetworkTimeServiceQuerying",
 ];
 
+/// Adds the quiet settings to `flags`.
+pub(crate) fn apply(flags: &mut ChromiumFlags) {
+    flags.set_with_value("disable-features", DISABLED_FEATURES.join(","));
+    // Component update checks to update.googleapis.com, first about 60 s
+    // after launch
+    flags.set("disable-component-update");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -36,5 +46,13 @@ mod tests {
         ] {
             assert!(DISABLED_FEATURES.contains(&feature));
         }
+    }
+
+    #[test]
+    fn quiet_flags_also_stop_component_updates() {
+        let mut flags = ChromiumFlags::default();
+        apply(&mut flags);
+        assert!(flags.contains("disable-features"));
+        assert!(flags.contains("disable-component-update"));
     }
 }

@@ -1,5 +1,6 @@
-//! Quiet network: run with --log-net-log=/tmp/quiet.json, wait, quit, then
-//! list the hosts Chromium contacted. With quiet_network the page, which
+//! Quiet network: run with --log-net-log=/tmp/quiet.json, wait more than a
+//! minute (component update checks start about 60 s after launch), quit,
+//! then list the hosts Chromium contacted. With quiet_network the page, which
 //! makes no requests, should leave no Google hosts in the log.
 //! KUROGANE_LOUD=1 runs without it for comparison.
 
