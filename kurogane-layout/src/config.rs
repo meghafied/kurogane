@@ -115,6 +115,9 @@ pub struct BundleConfig {
 pub struct ResourceConfig {
     pub source: PathBuf,
     pub destination: Option<String>,
+    /// Recreate symlinks inside a directory resource instead of copying
+    /// what they point to. Links must be relative and stay inside `source`.
+    pub preserve_symlinks: bool,
 }
 
 impl ResourceConfig {
@@ -132,6 +135,7 @@ impl ResourceConfig {
         Ok(ResolvedResource {
             source: self.source.clone(),
             destination,
+            preserve_symlinks: self.preserve_symlinks,
         })
     }
 }
@@ -417,10 +421,39 @@ future-option = 42
     }
 
     #[test]
+    fn resources_may_preserve_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        write_config(
+            dir.path(),
+            r#"
+[[bundle.resources]]
+source = "build/worker"
+destination = "worker"
+preserve-symlinks = true
+
+[[bundle.resources]]
+source = "LICENSE"
+"#,
+        );
+
+        let config = PackagingConfig::load(dir.path()).unwrap();
+        let resolved: Vec<_> = config
+            .bundle
+            .resources
+            .iter()
+            .map(|r| r.to_resolved().unwrap())
+            .collect();
+
+        assert!(resolved[0].preserve_symlinks);
+        assert!(!resolved[1].preserve_symlinks);
+    }
+
+    #[test]
     fn resource_without_filename_is_rejected() {
         let config = ResourceConfig {
             source: PathBuf::from(".."),
             destination: None,
+            preserve_symlinks: false,
         };
 
         let err = config.to_resolved().unwrap_err();

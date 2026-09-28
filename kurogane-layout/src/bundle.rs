@@ -21,7 +21,10 @@ use thiserror::Error;
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::PermissionsExt;
 
-use crate::{ResolvedDistribution, layout::copy_dir};
+use crate::{
+    ResolvedDistribution,
+    layout::{copy_dir, copy_dir_preserving_links},
+};
 
 /// Errors raised while materializing or verifying a canonical bundle.
 #[derive(Debug, Error)]
@@ -192,7 +195,9 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
         for resource in &dist.extra_resources {
             let dest = self.root.join(&resource.destination);
-            if resource.source.is_dir() {
+            if resource.source.is_dir() && resource.preserve_symlinks {
+                copy_dir_preserving_links(&resource.source, &dest)?;
+            } else if resource.source.is_dir() {
                 copy_dir(&resource.source, &dest)?;
             } else {
                 if let Some(parent) = dest.parent() {
@@ -301,6 +306,7 @@ mod tests {
         dist.extra_resources.push(crate::ResolvedResource {
             source: res_file.clone(),
             destination: "data.txt".into(),
+            preserve_symlinks: false,
         });
 
         let res_dir = dir.path().join("assets");
@@ -309,6 +315,7 @@ mod tests {
         dist.extra_resources.push(crate::ResolvedResource {
             source: res_dir.clone(),
             destination: "assets".into(),
+            preserve_symlinks: false,
         });
 
         let out = dir.path().join("out");

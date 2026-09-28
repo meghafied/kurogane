@@ -122,6 +122,7 @@ pub fn sample_distribution(dir: &Path) -> ResolvedDistribution {
         extra_resources: vec![ResolvedResource {
             source: resource,
             destination,
+            preserve_symlinks: false,
         }],
     }
 }

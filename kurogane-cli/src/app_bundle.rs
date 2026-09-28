@@ -10,7 +10,10 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use kurogane_layout::{AppMetadata, SignConfig, copy_dir, sign_app_bundle, validate_cef_runtime};
+use kurogane_layout::{
+    AppMetadata, SignConfig, copy_dir, copy_dir_preserving_links, sign_app_bundle,
+    validate_cef_runtime,
+};
 
 use crate::tui;
 
@@ -356,7 +359,14 @@ pub fn build(
     // Extra resources
     for resource in &dist.extra_resources {
         let dest = resources_dir(&app_dir).join(&resource.destination);
-        if resource.source.is_dir() {
+        if resource.source.is_dir() && resource.preserve_symlinks {
+            copy_dir_preserving_links(&resource.source, &dest).with_context(|| {
+                format!(
+                    "failed to copy {} with its symlinks",
+                    resource.source.display()
+                )
+            })?;
+        } else if resource.source.is_dir() {
             copy_dir(&resource.source, &dest)?;
         } else {
             if let Some(parent) = dest.parent() {
@@ -727,6 +737,7 @@ mod tests {
             extra_resources: vec![ResolvedResource {
                 source: asset,
                 destination: "share/asset.txt".into(),
+                preserve_symlinks: false,
             }],
         };
 
@@ -740,5 +751,37 @@ mod tests {
                 .join("asset.txt")
                 .exists()
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn opted_in_resources_keep_their_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let cef = dir.path().join("cef");
+        framework_fixture(&cef);
+        let exe = dir.path().join("target").join("release").join("myapp");
+        write_executable(&exe);
+        let worker = dir.path().join("worker");
+        fs::create_dir_all(&worker).unwrap();
+        fs::write(worker.join("libreal.dylib"), b"lib").unwrap();
+        std::os::unix::fs::symlink("libreal.dylib", worker.join("libalias.dylib")).unwrap();
+
+        let dist = ResolvedDistribution {
+            metadata: sample_metadata(),
+            executable: exe,
+            frontend: None,
+            cef_runtime: cef,
+            extra_resources: vec![ResolvedResource {
+                source: worker,
+                destination: "worker".into(),
+                preserve_symlinks: true,
+            }],
+        };
+
+        let app_dir = build(&dist, &dir.path().join("dist"), None).unwrap();
+
+        let alias = app_dir.join("Contents/Resources/worker/libalias.dylib");
+        assert!(alias.symlink_metadata().unwrap().file_type().is_symlink());
+        assert_eq!(fs::read_link(&alias).unwrap(), Path::new("libreal.dylib"));
     }
 }

@@ -425,6 +425,7 @@ mod tests {
         kurogane_layout::ResourceConfig {
             source: source.into(),
             destination: destination.map(str::to_owned),
+            preserve_symlinks: false,
         }
     }
 
