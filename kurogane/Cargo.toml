@@ -47,8 +47,11 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
     "NSResponder",
     "NSRunningApplication",
     "NSWorkspace",
+    "NSMenu",
+    "NSMenuItem",
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["NSString", "NSURL"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["NSString"] }
 
 [features]
 debug = []

@@ -15,6 +15,7 @@ mod main_window;
 mod new_window;
 mod external;
 mod download;
+mod menu;
 mod client;
 mod chrome_commands;
 mod scheme;

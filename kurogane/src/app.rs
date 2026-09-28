@@ -266,6 +266,7 @@ pub struct App {
     main_window: MainWindow,
     on_new_window: Option<NewWindowHandler>,
     downloads: Downloads,
+    default_menu: bool,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -307,6 +308,7 @@ impl App {
             main_window: MainWindow::default(),
             on_new_window: None,
             downloads: Downloads::default(),
+            default_menu: true,
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -735,6 +737,17 @@ impl App {
         self
     }
 
+    /// Whether macOS gets the standard App, Edit and Window menus (Quit ⌘Q,
+    /// Undo, Copy, Paste and so on). On by default: without a menu, macOS
+    /// apps cannot be quit with ⌘Q and text fields lose their edit
+    /// shortcuts. Page shortcuts such as ⌘S are left to the page.
+    ///
+    /// Has no effect on other platforms or in embedded mode.
+    pub fn default_menu(mut self, enabled: bool) -> Self {
+        self.default_menu = enabled;
+        self
+    }
+
     /// Sets the Chromium process sandbox policy.
     ///
     /// Defaults to [`SandboxMode::Disabled`].
@@ -815,6 +828,7 @@ impl App {
             main_window,
             on_new_window,
             downloads,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -846,6 +860,7 @@ impl App {
             main_window,
             on_new_window,
             downloads,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -883,6 +898,7 @@ impl App {
             main_window,
             on_new_window,
             downloads,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -914,6 +930,7 @@ impl App {
             main_window,
             on_new_window,
             downloads,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,

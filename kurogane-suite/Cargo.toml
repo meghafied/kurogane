@@ -106,3 +106,7 @@ path = "scenarios/new-window/main.rs"
 [[example]]
 name = "downloads"
 path = "scenarios/downloads/main.rs"
+
+[[example]]
+name = "menu"
+path = "scenarios/menu/main.rs"

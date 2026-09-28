@@ -245,6 +245,20 @@ See:
 
 * [examples/downloads](../kurogane-suite/scenarios/downloads/main.rs)
 
+## The macOS menu bar
+
+Kurogane installs the standard App, Edit and Window menus on macOS, so ⌘Q
+quits and text fields get their editing shortcuts. Page shortcuts such as
+⌘S are left to the page. Turn it off to install your own:
+
+```rust
+kurogane::App::new("dist").default_menu(false).run_or_exit();
+```
+
+See:
+
+* [examples/menu](../kurogane-suite/scenarios/menu/main.rs)
+
 ## Exposing Rust commands to JavaScript
 
 Register commands using `App::command`.
