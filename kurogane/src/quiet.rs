@@ -3,7 +3,11 @@
 //! Chrome-style CEF keeps several browser services alive that talk to
 //! Google without any page asking: AI-mode eligibility checks,
 //! search-engine preconnects, network time queries, component update
-//! checks and account reconciliation.
+//! checks, Safe Browsing list updates and account reconciliation.
+//!
+//! Safe Browsing is turned off entirely: Chromium 150 has no switch that
+//! stops only its list updates. That removes its warnings for pages loaded
+//! from the web, so it suits apps that show their own content.
 //!
 //! Account reconciliation (`accounts.google.com/ListAccounts`) is not
 //! covered: turning it off means disallowing sign-in (`signin.allowed`),
@@ -23,6 +27,13 @@ pub(crate) const DISABLED_FEATURES: &[&str] = &[
     "PreconnectFromKeyedService",
     // Secure time queries to clients2.google.com/time
     "NetworkTimeServiceQuerying",
+];
+
+/// Boolean preferences switched off on the global request context.
+pub(crate) const DISABLED_PREFERENCES: &[&str] = &[
+    // Safe Browsing list updates to safebrowsing.googleapis.com, a few
+    // minutes after launch
+    "safebrowsing.enabled",
 ];
 
 /// Adds the quiet settings to `flags`.
@@ -46,6 +57,7 @@ mod tests {
         ] {
             assert!(DISABLED_FEATURES.contains(&feature));
         }
+        assert!(DISABLED_PREFERENCES.contains(&"safebrowsing.enabled"));
     }
 
     #[test]
