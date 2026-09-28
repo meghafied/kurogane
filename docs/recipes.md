@@ -183,6 +183,27 @@ On macOS, opening the app bundle while it is already running activates the exist
 
 Sometimes two copies really do need to run at the same time. Give each one a different profile with `App::profile_id`.
 
+## Keeping Chromium quiet
+
+Chrome-style CEF runs browser services that contact Google on their own,
+even when your page makes no requests: AI-mode eligibility checks and
+search-engine preconnects (`www.google.com`), network time queries
+(`clients2.google.com`) and account reconciliation (`accounts.google.com`).
+For apps that promise to stay offline:
+
+```rust
+kurogane::App::new("dist").quiet_network(true).run_or_exit();
+```
+
+Requests your page makes are unaffected. Account reconciliation is not
+silenced yet: it stops only when sign-in is disallowed, which CEF 150
+cannot start with. To check, run with `--log-net-log=/tmp/net.json` and
+look for hosts you did not expect.
+
+See:
+
+* [examples/quiet](../kurogane-suite/scenarios/quiet/main.rs)
+
 ## Exposing Rust commands to JavaScript
 
 Register commands using `App::command`.

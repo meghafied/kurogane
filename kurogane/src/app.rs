@@ -260,6 +260,7 @@ pub struct App {
     chromium_flags: Vec<ChromiumFlag>,
     scheduler: Option<PumpScheduler>,
     on_second_instance: Option<SecondInstanceHandler>,
+    quiet_network: bool,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -298,6 +299,7 @@ impl App {
             chromium_flags: Vec::new(),
             scheduler: None,
             on_second_instance: None,
+            quiet_network: false,
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -675,6 +677,18 @@ impl App {
         self
     }
 
+    /// Silences Chromium services that call Google on their own: AI-mode
+    /// eligibility checks (`www.google.com/async/folae`), search-engine
+    /// preconnects and network time queries (`clients2.google.com/time`).
+    /// Requests your pages make are unaffected.
+    ///
+    /// Account reconciliation (`accounts.google.com/ListAccounts`) still
+    /// runs; see the `quiet` module for why.
+    pub fn quiet_network(mut self, quiet: bool) -> Self {
+        self.quiet_network = quiet;
+        self
+    }
+
     /// Sets the Chromium process sandbox policy.
     ///
     /// Defaults to [`SandboxMode::Disabled`].
@@ -752,6 +766,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -780,6 +795,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -814,6 +830,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -842,6 +859,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            quiet_network,
             delegates,
             renderer_delegates,
             scheme_handlers,
