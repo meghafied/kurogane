@@ -11,6 +11,7 @@ mod browser;
 mod browser_registry;
 mod window_registry;
 mod window;
+mod main_window;
 mod client;
 mod chrome_commands;
 mod scheme;
@@ -43,6 +44,7 @@ pub use scheme::{
 pub use error::{ConfigError, RuntimeError};
 pub use acl::{Origin, OriginError};
 pub use app::App;
+pub use main_window::MainWindow;
 pub use resources::resource_dir;
 pub use shutdown::ShutdownSignal;
 

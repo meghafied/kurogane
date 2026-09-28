@@ -134,13 +134,31 @@ wrap_browser_process_handler! {
 
             debug!("BrowserView created");
 
-            // Create delegate
+            // Size and title the window as the application asked
+            let options = &self.spec.main_window;
+            let bounds = options
+                .size
+                .and_then(|(width, height)| {
+                    display_get_primary().map(|display| {
+                        crate::main_window::centered_bounds(&display.work_area(), width, height)
+                    })
+                })
+                .unwrap_or_default();
+            let min_size = options
+                .min_size
+                .map(|(width, height)| Size { width, height })
+                .unwrap_or_default();
+
             let mut delegate = KuroganeWindowDelegate::new(
                 window_id,
                 browser_view,
                 self.services.window_registry.clone(),
-                Rect::default(),
+                bounds,
                 ShowState::NORMAL,
+                crate::window::Dressing {
+                    title: options.title.clone(),
+                    min_size,
+                },
                 is_closing,
             );
 
