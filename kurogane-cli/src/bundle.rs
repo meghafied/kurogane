@@ -361,7 +361,12 @@ pub fn run(debug: bool, format: PackageFormat, sign: bool) -> Result<()> {
 
         #[cfg(target_os = "macos")]
         PackageFormat::AppBundle => {
-            let app_dir = crate::app_bundle::build(&dist, &output_dir, sign_config.as_ref())?;
+            let app_dir = crate::app_bundle::build(
+                &dist,
+                &output_dir,
+                &packaging_config.macos,
+                sign_config.as_ref(),
+            )?;
             let name = dist.metadata.name.clone();
             crate::dmg::build(&app_dir, &output_dir, &name)?;
             tui::field("output", tui::format_path(&app_dir));
