@@ -11,6 +11,7 @@ mod browser;
 mod browser_registry;
 mod window_registry;
 mod window;
+mod menu;
 mod client;
 mod chrome_commands;
 mod scheme;

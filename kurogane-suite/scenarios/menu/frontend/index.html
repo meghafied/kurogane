@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Menu</title></head>
+<body style="font: 16px -apple-system, sans-serif; margin: 24px">
+  <textarea id="text" rows="4" cols="50">Select, ⌘C, ⌘V, ⌘Z, ⇧⌘Z, ⌘A here</textarea>
+  <pre id="keys"></pre>
+<script>
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey) document.getElementById("keys").textContent += `⌘${e.shiftKey ? "⇧" : ""}${e.key}\n`;
+  });
+</script>
+</body>
+</html>

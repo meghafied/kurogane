@@ -1168,6 +1168,9 @@ fn initialize_cef(
     debug!("Executing subprocess dispatch");
     execute_subprocesses(&args, &mut app);
 
+    #[cfg(target_os = "macos")]
+    let default_menu = spec.default_menu && !embedded_mode;
+
     let layout = resolve_layout(spec.profile_id)?;
     crate::sandbox::preflight(spec.sandbox_mode, &layout.cef_root)?;
 
@@ -1205,6 +1208,11 @@ fn initialize_cef(
 
     #[cfg(target_os = "macos")]
     crate::platform::macos::setup_app_delegate();
+
+    #[cfg(target_os = "macos")]
+    if default_menu {
+        crate::platform::macos::install_default_menu();
+    }
 
     // Only install Ctrl+C handler if CEF Views owns the window (non-embedded mode)
     // In embedded mode the host application manages its own lifecycle

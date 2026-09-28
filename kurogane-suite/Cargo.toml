@@ -94,3 +94,7 @@ path = "scenarios/sandbox-smoke.rs"
 [[example]]
 name = "workspace"
 path = "scenarios/workspace/main.rs"
+
+[[example]]
+name = "menu"
+path = "scenarios/menu/main.rs"

@@ -128,6 +128,78 @@ pub fn setup_app_delegate() {
     std::mem::forget(delegate);
 }
 
+/// Installs the default App, Edit and Window menus.
+///
+/// Must run on the main thread after CEF initialization, in the browser process.
+pub fn install_default_menu() {
+    use objc2::runtime::Sel;
+    use objc2_app_kit::{NSEventModifierFlags, NSMenu, NSMenuItem, NSRunningApplication};
+    use objc2_foundation::NSString;
+
+    use crate::menu::{Item, default_menus};
+
+    let mtm = MainThreadMarker::new().expect("install_default_menu must run on the main thread");
+    let app = NSApp(mtm);
+
+    let app_name = NSRunningApplication::currentApplication()
+        .localizedName()
+        .map(|name| name.to_string())
+        .or_else(|| {
+            std::env::current_exe().ok().and_then(|exe| {
+                exe.file_stem()
+                    .map(|stem| stem.to_string_lossy().into_owned())
+            })
+        })
+        .unwrap_or_else(|| "Application".to_owned());
+
+    let bar = NSMenu::new(mtm);
+    for menu in default_menus(&app_name) {
+        let submenu = NSMenu::initWithTitle(NSMenu::alloc(mtm), &NSString::from_str(&menu.title));
+        for item in &menu.items {
+            let entry = match item {
+                Item::Separator => NSMenuItem::separatorItem(mtm),
+                Item::Action {
+                    title,
+                    selector,
+                    key,
+                    modifiers,
+                } => {
+                    let selector =
+                        Sel::register(&CString::new(*selector).expect("selector has no NUL"));
+                    // SAFETY: the selector travels the responder chain, which
+                    // ignores it when nothing implements it
+                    let entry = unsafe {
+                        NSMenuItem::initWithTitle_action_keyEquivalent(
+                            NSMenuItem::alloc(mtm),
+                            &NSString::from_str(title),
+                            Some(selector),
+                            &NSString::from_str(key),
+                        )
+                    };
+                    let mut mask = NSEventModifierFlags::Command;
+                    if modifiers.shift {
+                        mask |= NSEventModifierFlags::Shift;
+                    }
+                    if modifiers.option {
+                        mask |= NSEventModifierFlags::Option;
+                    }
+                    entry.setKeyEquivalentModifierMask(mask);
+                    entry
+                }
+            };
+            submenu.addItem(&entry);
+        }
+
+        let holder = NSMenuItem::new(mtm);
+        holder.setSubmenu(Some(&submenu));
+        bar.addItem(&holder);
+        if menu.is_window_menu {
+            app.setWindowsMenu(Some(&submenu));
+        }
+    }
+    app.setMainMenu(Some(&bar));
+}
+
 define_class! {
     #[unsafe(super(NSObject))]
     #[thread_kind = MainThreadOnly]

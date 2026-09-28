@@ -52,6 +52,7 @@ pub(crate) struct RuntimeSpec {
     pub chromium_flags: Vec<ChromiumFlag>,
     pub scheduler: Option<PumpScheduler>,
     pub on_second_instance: Option<SecondInstanceHandler>,
+    pub default_menu: bool,
     pub delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     pub renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     pub scheme_handlers: Vec<CustomScheme>,

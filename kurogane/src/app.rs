@@ -260,6 +260,7 @@ pub struct App {
     chromium_flags: Vec<ChromiumFlag>,
     scheduler: Option<PumpScheduler>,
     on_second_instance: Option<SecondInstanceHandler>,
+    default_menu: bool,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -298,6 +299,7 @@ impl App {
             chromium_flags: Vec::new(),
             scheduler: None,
             on_second_instance: None,
+            default_menu: true,
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -675,6 +677,17 @@ impl App {
         self
     }
 
+    /// Whether macOS gets the standard App, Edit and Window menus (Quit ⌘Q,
+    /// Undo, Copy, Paste and so on). On by default: without a menu, macOS
+    /// apps cannot be quit with ⌘Q and text fields lose their edit
+    /// shortcuts. Page shortcuts such as ⌘S are left to the page.
+    ///
+    /// Has no effect on other platforms or in embedded mode.
+    pub fn default_menu(mut self, enabled: bool) -> Self {
+        self.default_menu = enabled;
+        self
+    }
+
     /// Sets the Chromium process sandbox policy.
     ///
     /// Defaults to [`SandboxMode::Disabled`].
@@ -752,6 +765,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -780,6 +794,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -814,6 +829,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -842,6 +858,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            default_menu,
             delegates,
             renderer_delegates,
             scheme_handlers,
