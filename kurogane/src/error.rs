@@ -215,6 +215,8 @@ pub enum ConfigError {
     /// An ACL rule names the opaque origin, which would match every frame
     /// without a host.
     OpaqueOrigin(String),
+    /// A main window size is zero, negative or smaller than its minimum.
+    InvalidWindowSize(&'static str),
 }
 
 impl Display for ConfigError {
@@ -238,6 +240,9 @@ impl Display for ConfigError {
                 f,
                 "the rule for '{name}' names the opaque origin, which matches every frame without a host"
             ),
+            ConfigError::InvalidWindowSize(reason) => {
+                write!(f, "invalid main window size: {reason}")
+            }
         }
     }
 }

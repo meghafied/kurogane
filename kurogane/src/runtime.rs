@@ -886,6 +886,7 @@ impl AppInstance {
                 height: options.bounds.height,
             },
             options.show_state.into(),
+            crate::window::Dressing::default(),
             is_closing,
         );
 

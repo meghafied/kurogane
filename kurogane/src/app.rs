@@ -23,6 +23,7 @@ use crate::credentials::CredentialStorage;
 use crate::gpu::GpuMode;
 use crate::capability::Filesystem;
 use crate::acl::Origin;
+use crate::main_window::MainWindow;
 
 mod resolver;
 
@@ -260,6 +261,7 @@ pub struct App {
     chromium_flags: Vec<ChromiumFlag>,
     scheduler: Option<PumpScheduler>,
     on_second_instance: Option<SecondInstanceHandler>,
+    main_window: MainWindow,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -298,6 +300,7 @@ impl App {
             chromium_flags: Vec::new(),
             scheduler: None,
             on_second_instance: None,
+            main_window: MainWindow::default(),
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -653,6 +656,17 @@ impl App {
         self
     }
 
+    /// Sets the title, size and minimum size of the window the application
+    /// opens at startup. Windows from [`AppInstance::create_window`] are
+    /// unaffected.
+    ///
+    /// An invalid size is a configuration error, reported by [`App::build`].
+    pub fn main_window(mut self, window: MainWindow) -> Self {
+        self.problems.extend(window.problems());
+        self.main_window = window;
+        self
+    }
+
     /// Runs `f` in the running application whenever it is launched again.
     ///
     /// CEF runs one instance per profile ([`App::profile_id`]). A launch that
@@ -752,6 +766,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            main_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -780,6 +795,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            main_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -814,6 +830,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            main_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -842,6 +859,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            main_window,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -990,6 +1008,23 @@ mod tests {
             Err(RuntimeError::InvalidConfiguration(problems)) => {
                 assert_eq!(problems, duplicate("x"))
             }
+            Err(other) => panic!("expected a configuration error, got: {other}"),
+            Ok(_) => panic!("a misconfigured app must not start"),
+        }
+    }
+
+    #[test]
+    fn build_reports_an_invalid_main_window() {
+        let result = App::new("./dist")
+            .main_window(MainWindow::new().size(640, 480).min_size(800, 600))
+            .build();
+        match result {
+            Err(RuntimeError::InvalidConfiguration(problems)) => assert_eq!(
+                problems,
+                vec![ConfigError::InvalidWindowSize(
+                    "the minimum size is larger than the size"
+                )]
+            ),
             Err(other) => panic!("expected a configuration error, got: {other}"),
             Ok(_) => panic!("a misconfigured app must not start"),
         }

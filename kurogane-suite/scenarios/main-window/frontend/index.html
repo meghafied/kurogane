@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Page title 0</title></head>
+<body style="font: 16px -apple-system, sans-serif; margin: 24px">
+  <p>The window title should stay "Main window scenario".</p>
+  <p id="size"></p>
+<script>
+  let n = 0;
+  setInterval(() => { document.title = "Page title " + (++n); }, 1000);
+  const show = () => { document.getElementById("size").textContent = `${outerWidth}×${outerHeight}`; };
+  addEventListener("resize", show); show();
+</script>
+</body>
+</html>

@@ -12,6 +12,15 @@ use crate::browser_registry::{BrowserId, BrowserRegistry, BrowserType};
 use crate::window_registry::WindowRegistry;
 use crate::window_registry::WindowId;
 
+/// What a window shows besides its content: a fixed title and a minimum size.
+#[derive(Clone, Default)]
+pub(crate) struct Dressing {
+    /// Fixed title, when the application set one
+    pub title: Option<String>,
+    /// Smallest size the user may resize to; zero means no limit
+    pub min_size: Size,
+}
+
 wrap_window_delegate! {
     pub struct KuroganeWindowDelegate {
         window_id: WindowId,
@@ -19,6 +28,7 @@ wrap_window_delegate! {
         registry: Arc<Mutex<WindowRegistry>>,
         initial_bounds: Rect,
         show_state: ShowState,
+        dressing: Dressing,
         is_closing: Arc<AtomicBool>,
     }
 
@@ -30,6 +40,10 @@ wrap_window_delegate! {
             _child: Option<&mut View>,
         ) {
             // Intentionally unused
+        }
+
+        fn minimum_size(&self, _view: Option<&mut View>) -> Size {
+            self.dressing.min_size.clone()
         }
     }
 
@@ -46,6 +60,10 @@ wrap_window_delegate! {
 
         fn on_window_created(&self, window: Option<&mut Window>) {
             if let Some(window) = window {
+                if let Some(title) = &self.dressing.title {
+                    window.set_title(Some(&CefString::from(title.as_str())));
+                }
+
                 // Registered before the BrowserView is added, which creates
                 // its browser; on_browser_created links that browser here
                 let mut reg = self.registry.lock().unwrap();

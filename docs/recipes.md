@@ -183,6 +183,24 @@ On macOS, opening the app bundle while it is already running activates the exist
 
 Sometimes two copies really do need to run at the same time. Give each one a different profile with `App::profile_id`.
 
+## Sizing and titling the main window
+
+```rust
+use kurogane::{App, MainWindow};
+
+App::new("dist")
+    .main_window(MainWindow::new().title("Notes").size(1280, 860).min_size(960, 640))
+    .run_or_exit();
+```
+
+The window opens centered on the primary display, shrunk to fit if the
+display is smaller. The title stays fixed even when the page changes
+`document.title`. Sizes are density-independent pixels.
+
+See:
+
+* [examples/main-window](../kurogane-suite/scenarios/main-window/main.rs)
+
 ## Exposing Rust commands to JavaScript
 
 Register commands using `App::command`.
