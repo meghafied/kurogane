@@ -274,6 +274,7 @@ pub(crate) struct RuntimeServices {
     pub router: Arc<IpcRouter>,
     pub browser_registry: Arc<Mutex<BrowserRegistry>>,
     pub window_registry: Arc<Mutex<WindowRegistry>>,
+    pub downloads: crate::Downloads,
 }
 
 pub(crate) struct RuntimeState {
@@ -1157,6 +1158,7 @@ fn initialize_cef(
         router,
         browser_registry,
         window_registry,
+        downloads: spec.downloads,
     });
 
     #[cfg(target_os = "macos")]

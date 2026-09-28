@@ -183,6 +183,23 @@ On macOS, opening the app bundle while it is already running activates the exist
 
 Sometimes two copies really do need to run at the same time. Give each one a different profile with `App::profile_id`.
 
+## Asking where to save downloads
+
+Chrome-style windows save downloads straight to the Downloads folder. Ask
+instead:
+
+```rust
+use kurogane::{App, Downloads};
+
+App::new("dist").downloads(Downloads::Prompt).run_or_exit();
+```
+
+`Downloads::Deny` refuses them all.
+
+See:
+
+* [examples/downloads](../kurogane-suite/scenarios/downloads/main.rs)
+
 ## Exposing Rust commands to JavaScript
 
 Register commands using `App::command`.

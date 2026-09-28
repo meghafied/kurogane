@@ -23,6 +23,7 @@ use crate::credentials::CredentialStorage;
 use crate::gpu::GpuMode;
 use crate::capability::Filesystem;
 use crate::acl::Origin;
+use crate::download::Downloads;
 
 mod resolver;
 
@@ -260,6 +261,7 @@ pub struct App {
     chromium_flags: Vec<ChromiumFlag>,
     scheduler: Option<PumpScheduler>,
     on_second_instance: Option<SecondInstanceHandler>,
+    downloads: Downloads,
     delegates: Vec<Arc<dyn ClientAppBrowserDelegate>>,
     renderer_delegates: Vec<Arc<dyn ClientAppRendererDelegate>>,
     scheme_handlers: Vec<CustomScheme>,
@@ -298,6 +300,7 @@ impl App {
             chromium_flags: Vec::new(),
             scheduler: None,
             on_second_instance: None,
+            downloads: Downloads::default(),
             delegates: Vec::new(),
             renderer_delegates: Vec::new(),
             scheme_handlers: Vec::new(),
@@ -675,6 +678,14 @@ impl App {
         self
     }
 
+    /// Sets what happens to downloads. Defaults to [`Downloads::Chromium`],
+    /// which in Chrome-style windows saves to the Downloads folder without
+    /// asking.
+    pub fn downloads(mut self, policy: Downloads) -> Self {
+        self.downloads = policy;
+        self
+    }
+
     /// Sets the Chromium process sandbox policy.
     ///
     /// Defaults to [`SandboxMode::Disabled`].
@@ -752,6 +763,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -780,6 +792,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -814,6 +827,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,
@@ -842,6 +856,7 @@ impl App {
             chromium_flags,
             scheduler,
             on_second_instance,
+            downloads,
             delegates,
             renderer_delegates,
             scheme_handlers,

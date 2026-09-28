@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Downloads</title></head>
+<body style="font: 16px -apple-system, sans-serif; margin: 24px; display: grid; gap: 12px; justify-items: start">
+  <button id="blob">Download a blob: file</button>
+  <a id="data" href="data:text/plain,hello" download="data.txt">Download a data: file</a>
+  <button id="two">Two downloads from one click</button>
+<script>
+  const save = (name) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([name], { type: "text/plain" }));
+    a.download = name;
+    a.click();
+  };
+  document.getElementById("blob").onclick = () => save("kurogane-blob.txt");
+  document.getElementById("two").onclick = () => { save("kurogane-first.txt"); save("kurogane-second.txt"); };
+</script>
+</body>
+</html>
